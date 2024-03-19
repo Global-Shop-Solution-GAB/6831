@@ -1,0 +1,232 @@
+﻿Program.Sub.ScreenSU.Start
+Gui.fmMX..Create(BaseForm)
+Gui.fmMX..Caption("Paycom SFTP Maintenance")
+Gui.fmMX..Size(564,110)
+Gui.fmMX..MinX(0)
+Gui.fmMX..MinY(0)
+Gui.fmMX..Position(0,0)
+Gui.fmMX..AlwaysOnTop(False)
+Gui.fmMX..FontName("Tahoma")
+Gui.fmMX..FontSize(8.25)
+Gui.fmMX..ControlBox(True)
+Gui.fmMX..MaxButton(True)
+Gui.fmMX..MinButton(True)
+Gui.fmMX..MousePointer(0)
+Gui.fmMX..Moveable(True)
+Gui.fmMX..Sizeable(True)
+Gui.fmMX..ShowInTaskBar(True)
+Gui.fmMX..TitleBar(True)
+Gui.fmMX..Event(UnLoad,fmMX_UnLoad)
+Gui.fmMX.txtHost.Create(TextBox,"",True,132,20,0,10,24,True,0,"Tahoma",8.25,,1)
+Gui.fmMX.txtUser.Create(TextBox,"",True,100,20,0,147,24,True,0,"Tahoma",8.25,,1)
+Gui.fmMX.txtPwd.Create(TextBox,"",True,135,20,0,250,24,True,0,"Tahoma",8.25,,1)
+Gui.fmMX.txtPort.Create(TextBox,"",True,40,20,0,389,24,True,0,"Tahoma",8.25,,1)
+Gui.fmMX.txtPath.Create(TextBox,"",True,121,20,0,433,24,True,0,"Tahoma",8.25,,1)
+Gui.fmMX.lblHost.Create(Label,"Host",True,63,13,0,10,7,True,0,"Tahoma",8.25,,0,1)
+Gui.fmMX.lblHost.BorderStyle(0)
+Gui.fmMX.lblHost.FontStyle(True,False,False,False,False)
+Gui.fmMX.lblUser.Create(Label,"User",True,26,13,0,147,7,True,0,"Tahoma",8.25,,0,0)
+Gui.fmMX.lblUser.BorderStyle(0)
+Gui.fmMX.lblUser.FontStyle(True,False,False,False,False)
+Gui.fmMX.lblPwd.Create(Label,"Password",True,54,13,0,250,7,True,0,"Tahoma",8.25,,0,0)
+Gui.fmMX.lblPwd.BorderStyle(0)
+Gui.fmMX.lblPwd.FontStyle(True,False,False,False,False)
+Gui.fmMX.lblPort.Create(Label,"Port",True,24,13,0,389,7,True,0,"Tahoma",8.25,,0,0)
+Gui.fmMX.lblPort.BorderStyle(0)
+Gui.fmMX.lblPort.FontStyle(True,False,False,False,False)
+Gui.fmMX.lblPath.Create(Label,"Path",True,26,13,0,433,7,True,0,"Tahoma",8.25,,0,0)
+Gui.fmMX.lblPath.BorderStyle(0)
+Gui.fmMX.lblPath.FontStyle(True,False,False,False,False)
+Gui.fmMX.cmdSave.Create(Button)
+Gui.fmMX.cmdSave.Enabled(True)
+Gui.fmMX.cmdSave.Visible(True)
+Gui.fmMX.cmdSave.Zorder(0)
+Gui.fmMX.cmdSave.Size(121,23)
+Gui.fmMX.cmdSave.Position(433,50)
+Gui.fmMX.cmdSave.Caption("Save")
+Gui.fmMX.cmdSave.FontName("Tahoma")
+Gui.fmMX.cmdSave.FontSize(8.25)
+Gui.fmMX.cmdSave.FontStyle(True,False,False,False,False)
+Gui.fmMX.cmdSave.Event(Click,cmdSave_Click)
+Gui.fmMX.chkDelFile.Create(CheckBox)
+Gui.fmMX.chkDelFile.Enabled(False)
+Gui.fmMX.chkDelFile.Visible(False)
+Gui.fmMX.chkDelFile.Zorder(0)
+Gui.fmMX.chkDelFile.Size(190,20)
+Gui.fmMX.chkDelFile.Position(10,50)
+Gui.fmMX.chkDelFile.Caption("Delete Local Files?")
+Gui.fmMX.chkDelFile.FontName("Tahoma")
+Gui.fmMX.chkDelFile.FontSize(8.25)
+Gui.fmMX.chkDelFile.FontStyle(True,False,False,False,False)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+Function.Intrinsic.UI.UsePixels ' Allows you to use Pixels instead of Twips throughout
+'TJS, Mar 2021
+'MUM Industries
+'This program provides a means of storing the SFTP credentials securely for Paycom.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+'Modified the maintenance menu from 6284 to be used in 6831 for EDI upload to SFTP
+'Quote:13512-0
+'ALL170-33020221543-0
+'MUM INDUSTRIES
+'7/11/2022 -Sam S.
+
+F.Intrinsic.Control.CallSub(ConData)
+
+Gui.fmMX..Show
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Error,"SubRoutine",V.Ambient.CurrentSubroutine,"eNumber",V.Ambient.ErrorNumber,"eDescription",V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.ConData.Start
+F.Intrinsic.Control.Try
+V.Local.sTemp.Declare
+V.Local.baValue.Declare(ByteArray)
+
+F.ODBC.Connection!conts.OpenCompanyConnection
+
+F.Data.Datatable.CreateFromSQL("dtSettings","conts","Select * from GCG_6831_SETTINGS where REC_ID = '1'")
+
+F.ODBC.Connection!conts.Close
+
+F.Intrinsic.Control.If(V.DataTable.dtSettings.RowCount,=,0)
+	F.Intrinsic.Control.ExitSub
+F.Intrinsic.Control.EndIf
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemoteHost!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+Gui.fmMX.txtHost.Text(v.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemoteUser!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+Gui.fmMX.txtUser.Text(v.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemotePassword!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+Gui.fmMX.txtPwd.Text(v.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemotePort!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+Gui.fmMX.txtPort.Text(v.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemotePath!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+Gui.fmMX.txtPath.Text(v.Local.sTemp)
+
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Error,"SubRoutine",V.Ambient.CurrentSubroutine,"eNumber",V.Ambient.ErrorNumber,"eDescription",V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.ConData.End
+
+Program.Sub.cmdSave_Click.Start
+F.Intrinsic.Control.Try
+V.Local.sHost.Declare
+V.Local.sUser.Declare
+V.Local.sPWD.Declare
+V.Local.sPort.Declare
+V.Local.sPath.Declare
+V.Local.sSQL.Declare
+V.Local.sTemp.Declare
+V.Local.iSize.Declare
+V.Local.baValue.Declare(ByteArray)
+V.Local.bDelFile.Declare
+V.Local.sDelFile.Declare
+
+V.Local.sTemp.Set(V.Screen.fmMX!txtHost.Text.Trim)
+F.Intrinsic.Control.If(V.Local.sTemp.Trim,<>,"")
+	F.Intrinsic.Math.Add(V.Local.sTemp.Length,1,V.Local.iSize)
+	F.Intrinsic.String.RPad(V.Local.sTemp.Trim," ",V.Local.iSize,V.Local.sTemp)
+	F.Global.Encryption.Encrypt(V.Local.sTemp,V.Local.baValue)
+	F.Intrinsic.String.ConvertBA2String(V.Local.baValue,V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+V.Local.sHost.Set(V.Local.sTemp.Trim)
+
+V.Local.sTemp.Set(V.Screen.fmMX!txtUser.Text.Trim)
+F.Intrinsic.Control.If(V.Local.sTemp.Trim,<>,"")
+	F.Intrinsic.Math.Add(V.Local.sTemp.Length,1,V.Local.iSize)
+	F.Intrinsic.String.RPad(V.Local.sTemp.Trim," ",V.Local.iSize,V.Local.sTemp)
+	F.Global.Encryption.Encrypt(V.Local.sTemp,V.Local.baValue)
+	F.Intrinsic.String.ConvertBA2String(V.Local.baValue,V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+V.Local.sUser.Set(V.Local.sTemp.Trim)
+
+V.Local.sTemp.Set(V.Screen.fmMX!txtPwd.Text.Trim)
+F.Intrinsic.Control.If(V.Local.sTemp.Trim,<>,"")
+	F.Intrinsic.Math.Add(V.Local.sTemp.Length,1,V.Local.iSize)
+	F.Intrinsic.String.RPad(V.Local.sTemp.Trim," ",V.Local.iSize,V.Local.sTemp)
+	F.Global.Encryption.Encrypt(V.Local.sTemp,V.Local.baValue)
+	F.Intrinsic.String.ConvertBA2String(V.Local.baValue,V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+V.Local.sPWD.Set(V.Local.sTemp.Trim)
+
+V.Local.sTemp.Set(V.Screen.fmMX!txtPort.Text.Trim)
+F.Intrinsic.Control.If(V.Local.sTemp.Trim,<>,"")
+	F.Intrinsic.Math.Add(V.Local.sTemp.Length,1,V.Local.iSize)
+	F.Intrinsic.String.RPad(V.Local.sTemp.Trim," ",V.Local.iSize,V.Local.sTemp)
+	F.Global.Encryption.Encrypt(V.Local.sTemp,V.Local.baValue)
+	F.Intrinsic.String.ConvertBA2String(V.Local.baValue,V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+V.Local.sPort.Set(V.Local.sTemp.Trim)
+
+V.Local.sTemp.Set(V.Screen.fmMX!txtPath.Text.Trim)
+F.Intrinsic.Control.If(V.Local.sTemp.Trim,<>,"")
+	F.Intrinsic.Math.Add(V.Local.sTemp.Length,1,V.Local.iSize)
+	F.Intrinsic.String.RPad(V.Local.sTemp.Trim," ",V.Local.iSize,V.Local.sTemp)
+	F.Global.Encryption.Encrypt(V.Local.sTemp,V.Local.baValue)
+	F.Intrinsic.String.ConvertBA2String(V.Local.baValue,V.Local.sTemp)
+F.Intrinsic.Control.EndIf
+V.Local.sPath.Set(V.Local.sTemp.Trim)
+
+
+F.ODBC.Connection!conts.OpenCompanyConnection
+
+F.ODBC.Connection!conts.ExecuteAndReturn("Select REC_ID from GCG_6831_SETTINGS",V.Local.sSQL)
+
+F.Intrinsic.Control.If(V.Local.sSQL.Trim,=,"")
+	F.ODBC.Connection!conts.Execute("Delete GCG_6831_SETTINGS")
+	F.Intrinsic.String.Build("Insert into GCG_6831_SETTINGS (REC_ID,RemoteHost,RemoteUser,RemotePassword,RemotePort,RemotePath) values ('1','{0}','{1}','{2}','{3}','{4}')",V.Local.sHost,V.Local.sUser,V.Local.sPWD,V.Local.sPort,V.Local.sPath,V.Local.sSQL)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("Update GCG_6831_SETTINGS set RemoteHost = '{0}',RemoteUser = '{1}',RemotePassword = '{2}',RemotePort = '{3}',RemotePath = '{4}' where REC_ID = '1';",V.Local.sHost,V.Local.sUser,V.Local.sPWD,V.Local.sPort,V.Local.sPath,V.Local.sSQL)
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!conts.Execute(V.Local.sSQL)
+
+F.ODBC.Connection!conts.Close
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Error,"SubRoutine",V.Ambient.CurrentSubroutine,"eNumber",V.Ambient.ErrorNumber,"eDescription",V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdSave_Click.End
+
+Program.Sub.fmMX_UnLoad.Start
+F.Intrinsic.Control.End
+Program.Sub.fmMX_UnLoad.End
+
+Program.Sub.Error.Start
+V.Local.sError.Declare
+V.Local.iRet.Declare
+V.Local.sSep.Declare
+
+F.Intrinsic.String.Build("-------------------------------------------------------------------------------------",,V.Local.sSep)
+F.Intrinsic.String.Build("({5}-{6}){0}{7}{0}Project: {4}{0}{7}{0}Sub: {1}{0}Error: {2}, {3}", V.Ambient.NewLine, V.Args.SubRoutine, V.Args.eNumber, V.Args.eDescription,V.Caller.ScriptFile,V.Ambient.Date, V.Ambient.Time,V.Local.sSep,V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError,"Error",V.Local.iRet)
+Program.Sub.Error.End
+
+Program.Sub.Comments.Start
+${$5$}$3.0.0.0$}$1
+${$6$}$sstanka$}$20220715151742250$}$mP+zz5Tw3sT2/nyap+FbWm4triMPqjXDi6fqqArDjqCbMUSZMAlkuw3bZGYMMpuTFxDRoe8/SEU=
+Program.Sub.Comments.End
