@@ -1,0 +1,292 @@
+﻿Program.Sub.Preflight.Start
+V.Global.sHost.Declare
+V.Global.sUser.Declare
+V.Global.sPassword.Declare
+V.Global.sPort.Declare
+V.Global.sPath.Declare
+V.Global.sFile.Declare
+V.Global.sLocalPath.Declare
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Quote:13512-0
+'ALL170-33020221543-0
+'MUM INDUSTRIES
+'7/8/2022 -Sam S.
+'The customer would like to upload EA810 EDI Invoice files to a third party EDI Translator's SFTP site for conversion and sending to their customer.
+'This will be a stand-alone menu item to be run manually that will take a newly created EA810 file, append a datetime stamp to it along with a .txt extension and upload this to the EDI Translator.
+
+Function.Intrinsic.UI.UsePixels ' Allows you to use Pixels instead of Twips throughout
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+V.Local.sRet.Declare
+
+F.Intrinsic.UI.Msgbox("Are you sure you want to upload EDI invoices?","EDI SFTP Upload [6831]",4,V.Local.sRet)
+
+F.Intrinsic.Control.If(V.Local.sRet,=,"6")
+	F.Intrinsic.Control.CallSub("GetSFTPValues")
+	F.Intrinsic.Control.CallSub("GetEDIFile")
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+
+F.Intrinsic.Control.Catch
+
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} at {6} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Ambient.Now, V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"ErrorNumber",V.Ambient.ErrorNumber,"ErrorDescription",V.Ambient.ErrorDescription,"Subroutine",V.Ambient.CurrentSubroutine,"Task","UPLOAD")
+	
+
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.GetSFTPValues.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+V.Local.sTemp.Declare
+V.Local.baValue.Declare(ByteArray)
+
+'Get values from Custom table
+'SFTP site URL:
+'Username:
+'Password:
+'Remote Port:
+
+F.ODBC.Connection!con.opencompanyconnection
+F.Data.Datatable.CreateFromSQL("dtSettings","con","Select * from GCG_6831_SETTINGS where REC_ID = '1'")
+F.ODBC.Connection!con.Close
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemoteHost!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+V.Global.sHost.Set(V.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemoteUser!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+V.Global.sUser.Set(V.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemotePassword!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+V.Global.sPassword.Set(V.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemotePort!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+V.Global.sPort.Set(V.Local.sTemp)
+
+V.Local.sTemp.Set(V.DataTable.dtSettings(0).RemotePath!FieldValTrim)
+F.Intrinsic.String.ConvertString2BA(V.Local.sTemp,V.Local.baValue)
+F.Global.Encryption.Decrypt(V.Local.baValue,v.Local.sTemp)
+V.Global.sPath.Set(V.Local.sTemp)
+
+
+
+
+F.Intrinsic.Control.Catch
+
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} at {6} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Ambient.Now, V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"ErrorNumber",V.Ambient.ErrorNumber,"ErrorDescription",V.Ambient.ErrorDescription,"Subroutine",V.Ambient.CurrentSubroutine,"Task","UPLOAD")
+	
+
+F.Intrinsic.Control.EndTry
+Program.Sub.GetSFTPValues.End
+
+
+Program.Sub.GetEDIFile.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+V.Local.sPath.Declare
+V.Local.bExists.Declare
+V.Local.sPathList.Declare
+V.Local.iCnt.Declare
+V.Local.sFileName.Declare
+V.Local.sPath2.Declare
+V.Local.bFileLocked.Declare
+V.Local.bAE810.Declare
+V.Local.iRet.Declare
+V.Local.sPassedPath.Declare
+V.Local.sRet.Declare
+v.Local.sMessage.Declare
+
+'Check to make sure that the Global\Custom\6831\ccc\(Passed, Failed, Logs) exists
+F.Intrinsic.String.Build("{0}\Custom\6831\{1}\Logs\",V.Caller.GlobalDir,V.Caller.CompanyCode,V.Local.sPath)
+F.Intrinsic.File.DirExists(V.Local.sPath,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.CreateDir(V.Local.sPath)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0}\Custom\6831\{1}\Passed\",V.Caller.GlobalDir,V.Caller.CompanyCode,V.Local.sPath)
+F.Intrinsic.File.DirExists(V.Local.sPath,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.CreateDir(V.Local.sPath)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0}\Custom\6831\{1}\Failed\",V.Caller.GlobalDir,V.Caller.CompanyCode,V.Local.sPath)
+F.Intrinsic.File.DirExists(V.Local.sPath,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.CreateDir(V.Local.sPath)
+F.Intrinsic.Control.EndIf
+
+
+'Get EDI File from File location
+
+'Transfer the File to Global\Custom\6831\ccc\ and rename it with date time stamp and .txt
+
+F.Intrinsic.String.Build("{0}\Files\EDI\*",V.Caller.GlobalDir,V.Local.sPathList)
+F.Intrinsic.File.GetFileList(V.Local.sPathList,V.Local.sRet)
+F.Intrinsic.Control.If(V.Local.sRet,=,"")
+	F.Intrinsic.UI.Msgbox("No EDI files were found at Global\Files\EDI folder.")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+F.Intrinsic.String.Split(V.Local.sRet,":",V.Local.sRet)
+
+
+
+F.Intrinsic.Control.For(V.Local.iCnt,0,V.Local.sRet.UBound,1)
+	V.Local.sFileName.Set(V.Local.sRet(V.Local.iCnt))
+	F.Intrinsic.String.Build("{0}\Files\EDI\{1}",V.Caller.GlobalDir,V.Local.sFileName,V.Local.sPath2)
+	F.Intrinsic.String.Build("{0}\Custom\6831\{1}\{2}.TXT",V.Caller.GlobalDir,V.Caller.CompanyCode,V.Local.sFileName,V.Global.sLocalPath)
+	F.Intrinsic.String.Build("{0}\Custom\6831\{1}\Passed\{2}.TXT",V.Caller.GlobalDir,V.Caller.CompanyCode,V.Local.sFileName,V.Local.sPassedPath)
+	F.Intrinsic.String.Build("{0}.TXT",V.Local.sFileName,V.Global.sFile)
+	
+	F.Intrinsic.File.IsFileLocked(V.Local.sPath2,V.Local.bFileLocked)
+	F.Intrinsic.Control.If(V.Local.bFileLocked.Not)
+		F.Intrinsic.String.IsInString(V.Local.sFileName,"AE810",True,V.Local.bAE810)
+		F.Intrinsic.Control.If(V.Local.bAE810)
+			F.Intrinsic.File.MoveFile(V.Local.sPath2,V.Global.sLocalPath,V.Local.iRet)
+			F.Intrinsic.Control.If(V.Local.iRet,<>,0)
+				'Succeful file transfer
+				'Upload it to EDIT SFTP site now
+				F.Intrinsic.Control.CallSub(UploadEDIFile)
+				
+				'Move File to Passed folder
+				F.Intrinsic.File.MoveFile(V.Global.sLocalPath,V.Local.sPassedPath,V.Local.iRet)
+				
+				'Write to Logs
+				F.Intrinsic.String.Build("Upload completed for file [{0}]",V.Global.sFile,v.Local.sMessage)
+				F.Intrinsic.Control.CallSub(Logging,"Task","UPLOAD","Message",v.Local.sMessage)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.Else
+			F.Intrinsic.String.Build("Foreign File Found Please Remove: GLOBAL\FILES\EDI\[{0}]",V.Global.sFile,v.Local.sMessage)
+			F.Intrinsic.Control.CallSub(Logging,"Task","UPLOAD","Message",v.Local.sMessage)	
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	
+
+F.Intrinsic.Control.Next(V.Local.iCnt)
+
+F.Intrinsic.Control.Catch
+
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} at {6} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Ambient.Now, V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"ErrorNumber",V.Ambient.ErrorNumber,"ErrorDescription",V.Ambient.ErrorDescription,"Subroutine",V.Ambient.CurrentSubroutine,"Task","UPLOAD")
+	
+
+F.Intrinsic.Control.EndTry
+Program.Sub.GetEDIFile.End
+
+Program.Sub.UploadEDIFile.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+'Set SFTP properties
+F.Communication.SFTP.SetProperty("SSHAcceptServerAuthentication", True)
+F.Communication.SFTP.SetProperty("remoteHost",V.Global.sHost.Trim)
+F.Communication.SFTP.SetProperty("User",V.Global.sUser.Trim)
+F.Communication.SFTP.SetProperty("Password",V.Global.sPassword.Trim)
+F.Communication.SFTP.SetProperty("remotePort",V.Global.sPort)
+F.Communication.SFTP.Logon
+
+
+'upload EDI file
+'File upload
+F.Communication.SFTP.SetProperty("RemotePath",V.Global.sPath)
+F.Communication.SFTP.SetProperty("RemoteFile",V.Global.sFile)
+F.Communication.SFTP.SetProperty("LocalFile",V.Global.sLocalPath)
+F.Communication.SFTP.Upload
+
+F.Communication.SFTP.Logoff
+
+
+
+F.Intrinsic.Control.Catch
+
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} at {6} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Ambient.Now, V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"ErrorNumber",V.Ambient.ErrorNumber,"ErrorDescription",V.Ambient.ErrorDescription,"Subroutine",V.Ambient.CurrentSubroutine,"Task","UPLOAD")
+	
+
+F.Intrinsic.Control.EndTry
+Program.Sub.UploadEDIFile.End
+
+
+
+Program.Sub.WriteError.Start
+V.Local.sSubroutine.Declare
+V.Local.iError.Declare
+V.Local.sErrorDescription.Declare
+V.Local.sError.Declare
+
+F.Intrinsic.Control.Try
+
+V.Local.sSubroutine.Set(V.Args.Subroutine)
+V.Local.iError.Set(V.Args.ErrorNumber)
+V.Local.sErrorDescription.Set(V.Args.ErrorDescription)
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}SUB: {2}{1}Error Occured {3} With Description {4}{1}{1}GABVersion: {5}",V.Caller.ScriptFile,V.Ambient.NewLine,V.Local.sSubroutine,V.Local.iError,V.Local.sErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+
+F.Intrinsic.Control.CallSub(Logging,"Task",V.Args.Task,"Message",V.Local.sError)
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Caller.ScriptFile,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+F.Intrinsic.Control.EndTry
+Program.Sub.WriteError.End
+
+Program.Sub.Logging.Start
+V.Local.sPath.Declare
+V.Local.bExists.Declare
+V.Local.sTask.Declare
+V.Local.sFile.Declare
+V.Local.sMessage.Declare
+V.Local.sContents.Declare
+V.Local.sError.Declare
+
+F.Intrinsic.Control.Try
+
+V.Local.sTask.Set(V.Args.Task)
+V.Local.sMessage.Set(V.Args.Message)
+
+F.Intrinsic.String.Build("{0}\Custom\6831\{1}\Logs\",V.Caller.GlobalDir,V.Caller.CompanyCode,V.Local.sPath)
+F.Intrinsic.File.DirExists(V.Local.sPath,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.CreateDir(V.Local.sPath)
+F.Intrinsic.Control.EndIf
+
+'write the contents of the log line
+F.Intrinsic.String.Build("{0}  {1}:  {2}",V.Ambient.Date.FormatYYYY-MM-DD, V.Ambient.Time.Format!HH:NN:SS, V.Local.sMessage, V.Local.sContents)
+
+F.Intrinsic.String.Build("{0}{1}_LOG.txt",V.Local.sPath,V.Local.sTask,V.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile,V.Local.bExists)
+F.Intrinsic.Control.If(V.Local.bExists.Not)
+	F.Intrinsic.File.String2File(V.Local.sFile,V.Local.sContents)
+F.Intrinsic.Control.Else
+	F.Intrinsic.File.Append2FileNewLine(V.Local.sFile, V.Local.sContents)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Caller.ScriptFile,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+F.Intrinsic.Control.EndTry
+Program.Sub.Logging.End
+
+Program.Sub.Comments.Start
+${$5$}$3.0.0.0$}$1
+${$6$}$sstanka$}$20220808163319028$}$mP+zz5Tw3sT2/nyap+FbWm4triMPqjXD8sldwQJxQEt54VtpH1s4uc7EudWDmxWdqrafjKb/mlw=
+Program.Sub.Comments.End
